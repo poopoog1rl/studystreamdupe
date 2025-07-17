@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyStim - Study Together</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-graduation-cap"></i> StudyStim</h1>
+            <p>Study Together, Achieve More</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Room Creation/Join Section -->
+            <div id="room-setup" class="section">
+                <div class="room-controls">
+                    <div class="input-group">
+                        <input type="text" id="room-id" placeholder="Enter Room ID or leave blank to create new">
+                        <input type="text" id="username" placeholder="Your Name" required>
+                    </div>
+                    <div class="button-group">
+                        <button id="create-room" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create Room
+                        </button>
+                        <button id="join-room" class="btn btn-secondary">
+                            <i class="fas fa-sign-in-alt"></i> Join Room
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Study Room Section -->
+            <div id="study-room" class="section hidden">
+                <div class="room-header">
+                    <div class="room-info">
+                        <h2>Room: <span id="current-room-id"></span></h2>
+                        <div class="participants">
+                            <span id="participant-count">1/2 participants</span>
+                        </div>
+                    </div>
+                    <button id="leave-room" class="btn btn-danger">
+                        <i class="fas fa-sign-out-alt"></i> Leave Room
+                    </button>
+                </div>
+
+                <div class="study-area">
+                    <!-- Video Section -->
+                    <div class="video-section">
+                        <div class="video-container">
+                            <video id="local-video" autoplay muted></video>
+                            <div class="video-label">You</div>
+                        </div>
+                        <div class="video-container">
+                            <video id="remote-video" autoplay></video>
+                            <div class="video-label" id="remote-label">Waiting for partner...</div>
+                        </div>
+                    </div>
+
+                    <!-- Timer Section -->
+                    <div class="timer-section">
+                        <div class="timer-display">
+                            <div class="timer-circle">
+                                <span id="timer-text">25:00</span>
+                            </div>
+                        </div>
+                        <div class="timer-controls">
+                            <button id="start-timer" class="btn btn-success">
+                                <i class="fas fa-play"></i> Start
+                            </button>
+                            <button id="pause-timer" class="btn btn-warning">
+                                <i class="fas fa-pause"></i> Pause
+                            </button>
+                            <button id="reset-timer" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i> Reset
+                            </button>
+                        </div>
+                        <div class="timer-presets">
+                            <button class="preset-btn" data-minutes="25">25 min</button>
+                            <button class="preset-btn" data-minutes="45">45 min</button>
+                            <button class="preset-btn" data-minutes="60">60 min</button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Section -->
+                    <div class="chat-section">
+                        <div class="chat-header">
+                            <h3><i class="fas fa-comments"></i> Chat</h3>
+                        </div>
+                        <div id="chat-messages" class="chat-messages"></div>
+                        <div class="chat-input">
+                            <input type="text" id="message-input" placeholder="Type a message...">
+                            <button id="send-message" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="status-message" class="status-message hidden"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
