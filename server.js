@@ -1,7 +1,17 @@
 const WebSocket = require('ws');
 const http = require('http');
+const express = require('express');
+const cors = require('cors');
 
-const server = http.createServer();
+const app = express();
+app.use(cors());
+
+// Basic route for health check
+app.get('/', (req, res) => {
+    res.send('WebSocket server is running');
+});
+
+const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const rooms = new Map();
