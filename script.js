@@ -17,6 +17,8 @@ class StudyStim {
     }
 
     init() {
+        this.wsClient = new WebSocketClient(this);
+        this.wsClient.connect();
         this.setupEventListeners();
         this.setupWebRTC();
     }
