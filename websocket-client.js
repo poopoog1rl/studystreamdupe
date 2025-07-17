@@ -6,7 +6,7 @@ class WebSocketClient {
         this.maxReconnectAttempts = 5;
         
         // Using Railway.app WebSocket server
-        this.serverUrl = 'wss://your-project-name.railway.app'; // Replace with your Railway URL
+        this.serverUrl = 'wss://studydupe.railway.app'; // Replace with your Railway URL
     }
 
     connect() {
