@@ -27,50 +27,50 @@ class StudyStim {
     }
 
     handleRoomJoined(data) {
-        console.log('Room joined:', data);
-        this.showStatus(`Joined room ${data.roomId}`, 'success');
-        this.addChatMessage('System', `You joined the room`, true);
-        
-        // Initialize participants with existing users
-        if (data.participants) {
-            this.participants = data.participants;
-            this.updateParticipantCount(this.participants.length + 1); // +1 for self
-            data.participants.forEach(username => {
-                this.addChatMessage('System', `${username} is in the room`, true);
-            });
-        }
-        
-        // Show appropriate message based on participants
-        if (this.participants.length === 0) {
+    console.log('[handleRoomJoined]', data);
+    this.showStatus(`Joined room ${data.roomId}`, 'success');
+    this.addChatMessage('System', `You joined the room`, true);
+    // Always include self in participants
+    this.participants = Array.isArray(data.participants) ? [...data.participants, this.username] : [this.username];
+    this.updateParticipantCount(this.participants.length);
+    if (Array.isArray(data.participants)) {
+        data.participants.forEach(username => {
+            this.addChatMessage('System', `${username} is in the room`, true);
+        });
+    }
+    if (this.participants.length < 2) {
+        this.showStatus('Waiting for partner to join...', 'info');
+    } else {
+        this.showStatus('Connected with study partner!', 'success');
+    }
+}
+
+handleUserJoined(data) {
+    console.log('[handleUserJoined]', data);
+    if (!this.participants.includes(data.username)) {
+        this.participants.push(data.username);
+        this.updateParticipantCount(this.participants.length);
+        this.addChatMessage('System', `${data.username} joined the room`, true);
+        if (this.participants.length < 2) {
             this.showStatus('Waiting for partner to join...', 'info');
         } else {
             this.showStatus('Connected with study partner!', 'success');
         }
     }
+}
 
-    handleUserJoined(data) {
-        console.log('User joined:', data);
-        if (!this.participants.includes(data.username)) {
-            this.participants.push(data.username);
-            this.updateParticipantCount(this.participants.length + 1); // +1 for self
-            this.addChatMessage('System', `${data.username} joined the room`, true);
-            this.showStatus('Connected with study partner!', 'success');
+handleUserLeft(data) {
+    console.log('[handleUserLeft]', data);
+    const index = this.participants.indexOf(data.username);
+    if (index > -1) {
+        this.participants.splice(index, 1);
+        this.updateParticipantCount(this.participants.length);
+        this.addChatMessage('System', `${data.username} left the room`, true);
+        if (this.participants.length < 2) {
+            this.showStatus('Waiting for partner to join...', 'info');
         }
     }
-
-    handleUserLeft(data) {
-        console.log('User left:', data);
-        const index = this.participants.indexOf(data.username);
-        if (index > -1) {
-            this.participants.splice(index, 1);
-            this.updateParticipantCount(this.participants.length + 1); // +1 for self
-            this.addChatMessage('System', `${data.username} left the room`, true);
-            if (this.participants.length === 0) {
-                this.showStatus('Waiting for partner to join...', 'info');
-            }
-        }
-    }
-
+}
     setupEventListeners() {
         // Room setup events
         document.getElementById('create-room').addEventListener('click', () => this.createRoom());
@@ -278,36 +278,18 @@ class StudyStim {
 
     // Chat functionality
     sendMessage() {
-        const messageInput = document.getElementById('message-input');
-        const message = messageInput.value.trim();
-        
-        if (!message) return;
-
-        this.addChatMessage(this.username, message, false);
-        messageInput.value = '';
-        
-        // In a real implementation, this would send the message to the other participant
-        // For demo purposes, we'll simulate an echo after a delay
-        setTimeout(() => {
-            this.simulatePartnerMessage(message);
-        }, 1000 + Math.random() * 2000);
+    const messageInput = document.getElementById('message-input');
+    const message = messageInput.value.trim();
+    if (!message) return;
+    this.addChatMessage(this.username, message, false);
+    messageInput.value = '';
+    // Send chat message to server
+    if (this.currentRoom && this.wsClient) {
+        this.wsClient.sendChatMessage(this.currentRoom, message);
     }
+}
 
-    simulatePartnerMessage(originalMessage) {
-        const responses = [
-            "That's interesting!",
-            "I agree!",
-            "Good point",
-            "Let me think about that",
-            "Thanks for sharing",
-            "I'm focusing on my studies too",
-            "Great idea!",
-            "Let's keep studying!"
-        ];
-        
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        this.addChatMessage('Study Partner', randomResponse, false);
-    }
+
 
     addChatMessage(sender, message, isSystem = false) {
         const chatMessages = document.getElementById('chat-messages');
