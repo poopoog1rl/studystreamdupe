@@ -4,19 +4,32 @@ class WebSocketClient {
         this.ws = null;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
+        this.messageQueue = [];
+        this.isConnected = false;
         
         // Using Railway.app WebSocket server
         this.serverUrl = 'wss://studydupe.railway.app'; // Replace with your Railway URL
+        
+        // Connect immediately
+        this.connect();
     }
 
     connect() {
         try {
+            console.log('Attempting to connect to WebSocket server...');
             this.ws = new WebSocket(this.serverUrl);
             
             this.ws.onopen = () => {
                 console.log('Connected to WebSocket server');
                 this.reconnectAttempts = 0;
+                this.isConnected = true;
                 this.app.showStatus('Connected to server', 'success');
+                
+                // Send any queued messages
+                while (this.messageQueue.length > 0) {
+                    const data = this.messageQueue.shift();
+                    this.send(data);
+                }
             };
 
             this.ws.onmessage = (event) => {
@@ -25,13 +38,16 @@ class WebSocketClient {
 
             this.ws.onclose = () => {
                 console.log('WebSocket connection closed');
-                this.app.showStatus('Disconnected from server', 'error');
+                this.isConnected = false;
+                this.app.showStatus('Disconnected from server, attempting to reconnect...', 'error');
                 this.attemptReconnect();
             };
 
             this.ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
-                this.app.showStatus('Connection error', 'error');
+                this.isConnected = false;
+                this.app.showStatus('Connection error, attempting to reconnect...', 'error');
+                this.attemptReconnect();
             };
         } catch (error) {
             console.error('Failed to connect to WebSocket server:', error);
@@ -51,10 +67,17 @@ class WebSocketClient {
 
     send(data) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            console.log('Sending message:', data);
             this.ws.send(JSON.stringify(data));
         } else {
-            console.error('WebSocket not connected');
-            this.app.showStatus('Not connected to server', 'error');
+            console.log('WebSocket not connected, queueing message:', data);
+            this.messageQueue.push(data);
+            this.app.showStatus('Connecting to server...', 'info');
+            
+            // Try to reconnect if not already connected
+            if (!this.isConnected) {
+                this.connect();
+            }
         }
     }
 
