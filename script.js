@@ -27,24 +27,48 @@ class StudyStim {
     }
 
     handleRoomJoined(data) {
+        console.log('Room joined:', data);
         this.showStatus(`Joined room ${data.roomId}`, 'success');
         this.addChatMessage('System', `You joined the room`, true);
+        
+        // Initialize participants with existing users
+        if (data.participants) {
+            this.participants = data.participants;
+            this.updateParticipantCount(this.participants.length + 1); // +1 for self
+            data.participants.forEach(username => {
+                this.addChatMessage('System', `${username} is in the room`, true);
+            });
+        }
+        
+        // Show appropriate message based on participants
+        if (this.participants.length === 0) {
+            this.showStatus('Waiting for partner to join...', 'info');
+        } else {
+            this.showStatus('Connected with study partner!', 'success');
+        }
     }
 
     handleUserJoined(data) {
-        this.participants.push(data.username);
-        this.updateParticipantCount(this.participants.length);
-        this.addChatMessage('System', `${data.username} joined the room`, true);
-        this.showStatus(`${data.username} joined the room`, 'info');
+        console.log('User joined:', data);
+        if (!this.participants.includes(data.username)) {
+            this.participants.push(data.username);
+            this.updateParticipantCount(this.participants.length + 1); // +1 for self
+            this.addChatMessage('System', `${data.username} joined the room`, true);
+            this.showStatus('Connected with study partner!', 'success');
+        }
     }
 
     handleUserLeft(data) {
+        console.log('User left:', data);
         const index = this.participants.indexOf(data.username);
         if (index > -1) {
             this.participants.splice(index, 1);
+            this.updateParticipantCount(this.participants.length + 1); // +1 for self
+            this.addChatMessage('System', `${data.username} left the room`, true);
+            if (this.participants.length === 0) {
+                this.showStatus('Waiting for partner to join...', 'info');
+            }
         }
-        this.updateParticipantCount(this.participants.length);
-        this.addChatMessage('System', `${data.username} left the room`, true);
     }
 
     setupEventListeners() {

@@ -51,8 +51,10 @@ function handleMessage(ws, data) {
 
 function handleJoinRoom(ws, data) {
     const { roomId, username } = data;
+    console.log(`User ${username} attempting to join room ${roomId}`);
     
     if (!rooms.has(roomId)) {
+        console.log(`Creating new room ${roomId}`);
         rooms.set(roomId, new Set());
     }
     
@@ -61,11 +63,16 @@ function handleJoinRoom(ws, data) {
     ws.roomId = roomId;
     ws.username = username;
 
+    // Get current participants in the room
+    const participants = Array.from(room).map(client => client.username).filter(name => name !== username);
+    console.log(`Current participants in room ${roomId}:`, participants);
+
     // Notify the user they've joined
     ws.send(JSON.stringify({
         type: 'room_joined',
         roomId,
-        username
+        username,
+        participants // Send current participants list
     }));
 
     // Notify others in the room
@@ -107,12 +114,18 @@ function handleUserDisconnect(ws) {
 function broadcastToRoom(roomId, data, sender) {
     const room = rooms.get(roomId);
     if (room) {
+        console.log(`Broadcasting to room ${roomId}:`, data);
         const message = JSON.stringify(data);
+        let sentCount = 0;
         room.forEach((client) => {
             if (client !== sender && client.readyState === WebSocket.OPEN) {
                 client.send(message);
+                sentCount++;
             }
         });
+        console.log(`Message sent to ${sentCount} clients in room ${roomId}`);
+    } else {
+        console.log(`Room ${roomId} not found for broadcasting`);
     }
 }
 
