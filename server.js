@@ -12,7 +12,7 @@ app.get('/', (req, res) => {
 });
 
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ port: 8080 });
 
 const rooms = new Map();
 

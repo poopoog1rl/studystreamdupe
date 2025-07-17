@@ -8,6 +8,10 @@ class WebSocketClient {
         this.isConnected = false;
         this.pendingRoom = null;
         this.pendingUsername = null;
+        this.peerConnection = null;
+        this.localStream = null;
+        this.remoteStream = null;
+        this.isInitiator = false;
         
         // Using Railway.app WebSocket server with fallback to local for development
         this.serverUrl = window.location.hostname === 'localhost' 
@@ -115,7 +119,7 @@ class WebSocketClient {
                 this.app.handleTimerSync(data);
                 break;
             case 'webrtc_signal':
-                this.app.handleWebRTCSignal(data);
+                this.handleWebRTCSignal(data);
                 break;
             case 'error':
                 this.app.showStatus(data.message, 'error');
@@ -123,12 +127,22 @@ class WebSocketClient {
         }
     }
 
-    joinRoom(roomId, username) {
+    async joinRoom(roomId, username) {
+        // Clean up any existing WebRTC connections
+        this.cleanup();
+
+        // Set up WebRTC first to ensure we have media access
+        await this.setupWebRTC();
+
+        // Join the room
         this.send({
             type: 'join_room',
             roomId: roomId,
             username: username
         });
+        
+        // The first person to join is the initiator
+        this.isInitiator = !this.app.participants || this.app.participants.length === 0;
     }
 
     leaveRoom(roomId) {
@@ -161,5 +175,128 @@ class WebSocketClient {
             roomId: roomId,
             signal: signal
         });
+    }
+
+    async setupWebRTC() {
+        try {
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+            
+            // Display local stream
+            const localVideo = document.getElementById('local-video');
+            if (localVideo) {
+                localVideo.srcObject = this.localStream;
+            }
+
+            // Create peer connection if we have a partner
+            if (this.app.participants.length >= 2) {
+                this.createPeerConnection();
+            }
+        } catch (error) {
+            console.error('Error accessing media devices:', error);
+            this.app.showStatus('Camera/microphone access denied', 'error');
+        }
+    }
+
+    createPeerConnection() {
+        try {
+            this.peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+
+            // Add local stream tracks to the connection
+            this.localStream.getTracks().forEach(track => {
+                this.peerConnection.addTrack(track, this.localStream);
+            });
+
+            // Handle incoming stream
+            this.peerConnection.ontrack = (event) => {
+                console.log('Received remote stream');
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo && event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                    this.remoteStream = event.streams[0];
+                }
+            };
+
+            // ICE candidate handling
+            this.peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    this.sendWebRTCSignal(this.app.currentRoom, {
+                        type: 'ice-candidate',
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            this.peerConnection.oniceconnectionstatechange = () => {
+                console.log('ICE connection state:', this.peerConnection.iceConnectionState);
+            };
+
+            // If we're the initiator, create and send the offer
+            if (this.isInitiator) {
+                this.createOffer();
+            }
+        } catch (error) {
+            console.error('Error creating peer connection:', error);
+            this.app.showStatus('Failed to set up video chat', 'error');
+        }
+    }
+
+    async createOffer() {
+        try {
+            const offer = await this.peerConnection.createOffer();
+            await this.peerConnection.setLocalDescription(offer);
+            this.sendWebRTCSignal(this.app.currentRoom, {
+                type: 'offer',
+                sdp: offer
+            });
+        } catch (error) {
+            console.error('Error creating offer:', error);
+        }
+    }
+
+    async handleWebRTCSignal(data) {
+        if (!this.peerConnection) {
+            this.createPeerConnection();
+        }
+
+        try {
+            if (data.signal.type === 'offer') {
+                await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal.sdp));
+                const answer = await this.peerConnection.createAnswer();
+                await this.peerConnection.setLocalDescription(answer);
+                this.sendWebRTCSignal(this.app.currentRoom, {
+                    type: 'answer',
+                    sdp: answer
+                });
+            }
+            else if (data.signal.type === 'answer') {
+                await this.peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal.sdp));
+            }
+            else if (data.signal.type === 'ice-candidate') {
+                await this.peerConnection.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+            }
+        } catch (error) {
+            console.error('Error handling WebRTC signal:', error);
+        }
+    }
+
+    cleanup() {
+        if (this.peerConnection) {
+            this.peerConnection.close();
+            this.peerConnection = null;
+        }
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
+            this.localStream = null;
+        }
+        this.remoteStream = null;
+        this.isInitiator = false;
     }
 }
