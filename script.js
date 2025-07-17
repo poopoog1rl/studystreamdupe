@@ -21,6 +21,30 @@ class StudyStim {
         this.wsClient.connect();
         this.setupEventListeners();
         this.setupWebRTC();
+        
+        // Initialize participants array
+        this.participants = [];
+    }
+
+    handleRoomJoined(data) {
+        this.showStatus(`Joined room ${data.roomId}`, 'success');
+        this.addChatMessage('System', `You joined the room`, true);
+    }
+
+    handleUserJoined(data) {
+        this.participants.push(data.username);
+        this.updateParticipantCount(this.participants.length);
+        this.addChatMessage('System', `${data.username} joined the room`, true);
+        this.showStatus(`${data.username} joined the room`, 'info');
+    }
+
+    handleUserLeft(data) {
+        const index = this.participants.indexOf(data.username);
+        if (index > -1) {
+            this.participants.splice(index, 1);
+        }
+        this.updateParticipantCount(this.participants.length);
+        this.addChatMessage('System', `${data.username} left the room`, true);
     }
 
     setupEventListeners() {
@@ -106,16 +130,13 @@ class StudyStim {
         localStorage.setItem('studystim_room', roomId);
         localStorage.setItem('studystim_username', username);
 
+        // Send join room request through WebSocket
+        this.wsClient.joinRoom(roomId, username);
+        
         // Update UI
         document.getElementById('room-setup').classList.add('hidden');
         document.getElementById('study-room').classList.remove('hidden');
         document.getElementById('current-room-id').textContent = roomId;
-        
-        this.showStatus(`Joined room ${roomId}`, 'success');
-        this.addChatMessage('System', `${username} joined the room`, true);
-        
-        // Simulate adding participant (in real implementation, this would be handled by WebRTC signaling)
-        this.updateParticipantCount(1);
     }
 
     leaveRoom() {
