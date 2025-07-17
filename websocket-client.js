@@ -82,28 +82,38 @@ class WebSocketClient {
     }
 
     handleMessage(data) {
+        console.log('Received WebSocket message:', data);
         switch (data.type) {
             case 'room_joined':
+                console.log('Handling room_joined event:', data);
                 this.app.handleRoomJoined(data);
                 break;
             case 'user_joined':
+                console.log('Handling user_joined event:', data);
                 this.app.handleUserJoined(data);
                 break;
             case 'user_left':
+                console.log('Handling user_left event:', data);
                 this.app.handleUserLeft(data);
                 break;
             case 'chat_message':
+                console.log('Handling chat_message event:', data);
                 this.app.handleChatMessage(data);
                 break;
             case 'timer_sync':
+                console.log('Handling timer_sync event:', data);
                 this.app.handleTimerSync(data);
                 break;
             case 'webrtc_signal':
+                console.log('Handling webrtc_signal event:', data);
                 this.app.handleWebRTCSignal(data);
                 break;
             case 'error':
+                console.log('Handling error event:', data);
                 this.app.showStatus(data.message, 'error');
                 break;
+            default:
+                console.warn('Unknown message type:', data.type);
         }
     }
 
