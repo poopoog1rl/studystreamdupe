@@ -24,6 +24,14 @@ class StudyStim {
         
         // Initialize participants array
         this.participants = [];
+        
+        // Check for saved room and rejoin if needed
+        const savedRoom = localStorage.getItem('studystim_room');
+        const savedUsername = localStorage.getItem('studystim_username');
+        if (savedRoom && savedUsername) {
+            console.log(`Rejoining saved room ${savedRoom}`);
+            this.joinRoomWithId(savedRoom, savedUsername);
+        }
     }
 
     handleRoomJoined(data) {
@@ -147,6 +155,13 @@ handleUserLeft(data) {
     }
 
     joinRoomWithId(roomId, username) {
+        console.log(`Joining room ${roomId} as ${username}`);
+        
+        // Leave current room if any
+        if (this.currentRoom) {
+            this.wsClient.leaveRoom(this.currentRoom);
+        }
+        
         this.currentRoom = roomId;
         this.username = username;
         
@@ -155,7 +170,22 @@ handleUserLeft(data) {
         localStorage.setItem('studystim_username', username);
 
         // Send join room request through WebSocket
-        this.wsClient.joinRoom(roomId, username);
+        if (this.wsClient && this.wsClient.ws && this.wsClient.ws.readyState === WebSocket.OPEN) {
+            console.log('WebSocket is connected, sending join request');
+            this.wsClient.joinRoom(roomId, username);
+        } else {
+            console.log('WebSocket not ready, waiting for connection');
+            // Wait for connection and then join
+            setTimeout(() => {
+                if (this.wsClient && this.wsClient.ws && this.wsClient.ws.readyState === WebSocket.OPEN) {
+                    console.log('WebSocket now connected, sending join request');
+                    this.wsClient.joinRoom(roomId, username);
+                } else {
+                    console.log('WebSocket still not ready after delay');
+                    this.showStatus('Connection failed. Please try again.', 'error');
+                }
+            }, 1000);
+        }
         
         // Update UI
         document.getElementById('room-setup').classList.add('hidden');
@@ -164,6 +194,11 @@ handleUserLeft(data) {
     }
 
     leaveRoom() {
+        if (!this.currentRoom) return;
+
+        // Notify server before cleaning up
+        this.wsClient.leaveRoom(this.currentRoom);
+
         if (this.timer.interval) {
             clearInterval(this.timer.interval);
         }
@@ -186,9 +221,12 @@ handleUserLeft(data) {
         document.getElementById('chat-messages').innerHTML = '';
         
         this.resetTimer();
+        const oldRoom = this.currentRoom;
         this.currentRoom = null;
         this.username = null;
+        this.participants = [];
         
+        console.log(`Left room ${oldRoom}`);
         this.showStatus('Left the room', 'info');
     }
 

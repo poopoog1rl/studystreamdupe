@@ -22,6 +22,7 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
+            console.log('Received message:', data);
             handleMessage(ws, data);
         } catch (error) {
             console.error('Error parsing message:', error);
@@ -34,6 +35,7 @@ wss.on('connection', (ws) => {
 });
 
 function handleMessage(ws, data) {
+    console.log('Processing message:', data);
     switch (data.type) {
         case 'join_room':
             handleJoinRoom(ws, data);
@@ -46,6 +48,8 @@ function handleMessage(ws, data) {
         case 'webrtc_signal':
             broadcastToRoom(data.roomId, data, ws);
             break;
+        default:
+            console.log('Unknown message type:', data.type);
     }
 }
 
@@ -84,21 +88,31 @@ function handleJoinRoom(ws, data) {
 }
 
 function handleLeaveRoom(ws, data) {
+    console.log(`User ${ws.username} leaving room ${data.roomId}`);
     const room = rooms.get(data.roomId);
     if (room) {
         room.delete(ws);
         if (room.size === 0) {
+            console.log(`Room ${data.roomId} is empty, deleting`);
             rooms.delete(data.roomId);
+        } else {
+            broadcastToRoom(data.roomId, {
+                type: 'user_left',
+                username: ws.username,
+                roomId: data.roomId
+            }, ws);
         }
     }
 }
 
 function handleUserDisconnect(ws) {
     if (ws.roomId) {
+        console.log(`User ${ws.username} disconnected from room ${ws.roomId}`);
         const room = rooms.get(ws.roomId);
         if (room) {
             room.delete(ws);
             if (room.size === 0) {
+                console.log(`Room ${ws.roomId} is empty, deleting`);
                 rooms.delete(ws.roomId);
             } else {
                 broadcastToRoom(ws.roomId, {

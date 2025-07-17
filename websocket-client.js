@@ -6,10 +6,15 @@ class WebSocketClient {
         this.maxReconnectAttempts = 5;
         this.messageQueue = [];
         this.isConnected = false;
+        this.pendingRoom = null;
+        this.pendingUsername = null;
         
-        // Using Railway.app WebSocket server
-        this.serverUrl = 'wss://studydupe.railway.app'; // Replace with your Railway URL
+        // Using Railway.app WebSocket server with fallback to local for development
+        this.serverUrl = window.location.hostname === 'localhost' 
+            ? 'ws://localhost:8080'
+            : 'wss://studydupe.railway.app';
         
+        console.log('WebSocket URL:', this.serverUrl);
         // Connect immediately
         this.connect();
     }
@@ -36,10 +41,10 @@ class WebSocketClient {
                 this.handleMessage(JSON.parse(event.data));
             };
 
-            this.ws.onclose = () => {
-                console.log('WebSocket connection closed');
+            this.ws.onclose = (event) => {
+                console.log('WebSocket connection closed:', event.code, event.reason);
                 this.isConnected = false;
-                this.app.showStatus('Disconnected from server, attempting to reconnect...', 'error');
+                this.app.showStatus(`Disconnected from server (${event.code}), attempting to reconnect...`, 'error');
                 this.attemptReconnect();
             };
 
@@ -68,9 +73,15 @@ class WebSocketClient {
     send(data) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             console.log('Sending message:', data);
-            this.ws.send(JSON.stringify(data));
+            try {
+                this.ws.send(JSON.stringify(data));
+            } catch (error) {
+                console.error('Failed to send message:', error);
+                this.messageQueue.push(data);
+                this.app.showStatus('Failed to send message, will retry...', 'error');
+            }
         } else {
-            console.log('WebSocket not connected, queueing message:', data);
+            console.log('WebSocket not connected (state:', this.ws ? this.ws.readyState : 'null', '), queueing message:', data);
             this.messageQueue.push(data);
             this.app.showStatus('Connecting to server...', 'info');
             
@@ -85,35 +96,30 @@ class WebSocketClient {
         console.log('Received WebSocket message:', data);
         switch (data.type) {
             case 'room_joined':
-                console.log('Handling room_joined event:', data);
+                console.log('Processing room_joined:', data);
                 this.app.handleRoomJoined(data);
                 break;
             case 'user_joined':
-                console.log('Handling user_joined event:', data);
+                console.log('Processing user_joined:', data);
                 this.app.handleUserJoined(data);
                 break;
             case 'user_left':
-                console.log('Handling user_left event:', data);
+                console.log('Processing user_left:', data);
                 this.app.handleUserLeft(data);
                 break;
             case 'chat_message':
-                console.log('Handling chat_message event:', data);
-                this.app.handleChatMessage(data);
+                console.log('Processing chat_message:', data);
+                this.app.addChatMessage(data.username, data.message);
                 break;
             case 'timer_sync':
-                console.log('Handling timer_sync event:', data);
                 this.app.handleTimerSync(data);
                 break;
             case 'webrtc_signal':
-                console.log('Handling webrtc_signal event:', data);
                 this.app.handleWebRTCSignal(data);
                 break;
             case 'error':
-                console.log('Handling error event:', data);
                 this.app.showStatus(data.message, 'error');
                 break;
-            default:
-                console.warn('Unknown message type:', data.type);
         }
     }
 
